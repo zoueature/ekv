@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	heartBeatRate = 3 * time.Second
+	heartBeatRate = 300 * time.Millisecond
 )
 
 // StartVote 开始新一轮的领导人选举
@@ -59,7 +59,7 @@ func (rf *raft) StartVote() {
 		return
 	}
 	//起定时器， 超时未获得其他领导人的心跳包， 则重新起一轮领导人选举
-	utils.BlockRandTime(1500*time.Millisecond, 3000*time.Millisecond)
+	utils.BlockRandTime(150*time.Millisecond, 300*time.Millisecond)
 	if rf.getRole() == Follower {
 		return
 	}
@@ -68,6 +68,7 @@ func (rf *raft) StartVote() {
 
 func (rf *raft) ChangeToLeader() {
 	rf.setRole(Leader)
+	log.Printf("%s voted to be a leader", rf.host)
 	go rf.HeartBeat()
 }
 
