@@ -17,33 +17,27 @@ func TestNewRaft(t *testing.T) {
 		Cluster: []string{
 			"127.0.0.1:8082",
 			"127.0.0.1:8083",
-			"127.0.0.1:8084",
-			"127.0.0.1:8085",
 		},
+		MinNodeNum: 3,
 	}
-	raft := NewRaft(cfg)
-	raft.StartVote()
+	_ = NewRaft(cfg)
 	cfg = &Conf{
 		Host: "127.0.0.1:8082",
 		Cluster: []string{
 			"127.0.0.1:8081",
 			"127.0.0.1:8083",
-			"127.0.0.1:8084",
-			"127.0.0.1:8085",
 		},
+		MinNodeNum: 3,
 	}
-	raft1 := NewRaft(cfg)
-	raft1.StartVote()
+	_ = NewRaft(cfg)
 	cfg = &Conf{
 		Host: "127.0.0.1:8083",
 		Cluster: []string{
 			"127.0.0.1:8081",
 			"127.0.0.1:8082",
-			"127.0.0.1:8084",
-			"127.0.0.1:8085",
 		},
+		MinNodeNum: 3,
 	}
-	raft2 := NewRaft(cfg)
-	raft2.StartVote()
+	_ = NewRaft(cfg)
 	time.Sleep(1000 * time.Second)
 }

@@ -22,9 +22,11 @@ type logEntity struct {
 
 // persistenceStatus 持久性状态
 type persistenceStatus struct {
-	currentTerm int64        //当前任期
-	votedFor    string       //选举投给的候选者id
-	log         []*logEntity //日志条目
+	currentTerm  int64        //当前任期
+	votedFor     string       //选举投给的候选者id
+	log          []*logEntity //日志条目
+	logLastIndex int64        //日志的最新条目的索引
+	logLastItem  int64        //日志最新条目的任期
 }
 
 // volatileStatus 易失性状态
@@ -60,15 +62,17 @@ type raft struct {
 	persistenceStatus
 	volatileStatus
 	id              string              //节点id
+	host            string              //host地址
 	leadStatus      *leaderStatus       //领导人状态
 	role            Role                //角色
-	roleLock        sync.RWMutex        //角色读写锁
+	lock            sync.RWMutex        //读写锁
 	voteTimeout     time.Duration       //选举超时时间
 	rpc             *rpc.Server         //rpc服务
 	cluster         map[string]*Cluster //与其他节点的连接
 	statMachine     *statMachine        //状态机
 	dialChan        chan<- string       //重试连接节点通道
 	latestHeartBeat int64               //上次心跳包的时间
+	conf            *Conf               //集群配置
 }
 
 type Raft interface {
@@ -84,38 +88,38 @@ func (rf *raft) initialPersistenceStatus() {
 }
 
 type Conf struct {
-	Host    string   `yaml:"host"`
-	Cluster []string `yaml:"cluster"`
+	Host       string   `yaml:"host"`
+	Cluster    []string `yaml:"cluster"`
+	MinNodeNum int      `yaml:"minNode"`
 }
 
 func NewRaft(cfg *Conf) Raft {
 	id := uuid.New().String()
 	rf := &raft{
-		id:       id,
-		role:     Follower,
-		roleLock: sync.RWMutex{},
+		id:   id,
+		role: Follower,
+		lock: sync.RWMutex{},
 		volatileStatus: volatileStatus{
 			commitIndex: 0,
 			lastApplied: 0,
 		},
 		statMachine: NewStatMachine(),
 		cluster:     make(map[string]*Cluster),
+		host:        cfg.Host,
+		conf:        cfg,
 	}
 	err := InitialRpcServer(cfg.Host, &Rpc{rf: rf})
 	if err != nil {
 		log.Fatalf("start %s server error: %s", cfg.Host, err.Error())
 		return nil
 	}
-	rf.startDialNodes(cfg.Cluster)
+	//与集群节点建立连接
+	rf.startDialNodes()
+	//读取文件中节点的状态
 	rf.initialPersistenceStatus()
-	//rf.handlerHearBeat()
+	//开始捕捉心跳包
+	go rf.handlerHearBeat()
 	return rf
-}
-
-func (rf *raft) changeRole(r Role) {
-	rf.roleLock.Lock()
-	rf.role = r
-	rf.roleLock.Unlock()
 }
 
 // Commit 提交日志条目
@@ -130,4 +134,41 @@ func (rf *raft) Commit(startIndex int, length ...int) error {
 		logEntry.commited = true
 	}
 	return nil
+}
+
+
+func (rf *raft) setRole(r Role) {
+	rf.lock.Lock()
+	rf.role = r
+	rf.lock.Unlock()
+}
+
+func (rf *raft) getRole() Role {
+	rf.lock.RLock()
+	defer rf.lock.RUnlock()
+	return rf.role
+}
+
+func (rf *raft) setCurrentTerm(term int64) {
+	rf.lock.Lock()
+	rf.currentTerm = term
+	rf.lock.Unlock()
+}
+
+func (rf *raft) getTerm() int64 {
+	rf.lock.RLock()
+	defer rf.lock.RUnlock()
+	return rf.currentTerm
+}
+
+func (rf *raft) setVote(id string) {
+	rf.lock.Lock()
+	rf.votedFor = id
+	rf.lock.Unlock()
+}
+
+func (rf *raft) getVote() string {
+	rf.lock.RLock()
+	defer rf.lock.RUnlock()
+	return rf.votedFor
 }

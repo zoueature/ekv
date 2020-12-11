@@ -23,7 +23,7 @@ type LogReply struct {
 type VoteMsg struct {
 	Term         int64  //候选人任期
 	CandidateId  string //候选人id
-	LastLogIndex int    //候选人最后日志条目索引值
+	LastLogIndex int64    //候选人最后日志条目索引值
 	LastLogTerm  int64  //候选人最后日志条目的任期
 }
 
