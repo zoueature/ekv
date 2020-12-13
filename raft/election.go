@@ -19,6 +19,7 @@ const (
 
 // StartVote 开始新一轮的领导人选举
 func (rf *raft) StartVote() {
+	log.Printf("start vote %+v", rf)
 	rf.setCurrentTerm(rf.currentTerm + 1)
 	rf.setRole(Candidate)
 	rf.setVote(rf.id)

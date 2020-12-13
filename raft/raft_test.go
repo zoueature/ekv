@@ -18,12 +18,12 @@ func TestNewRaft(t *testing.T) {
 			"127.0.0.1:8082",
 			"127.0.0.1:8083",
 			"127.0.0.1:8084",
-			"127.0.0.1:8085",
-			"127.0.0.1:8086",
-			"127.0.0.1:8087",
-			"127.0.0.1:8088",
+			//"127.0.0.1:8085",
+			//"127.0.0.1:8086",
+			//"127.0.0.1:8087",
+			//"127.0.0.1:8088",
 		},
-		MinNodeNum: 5,
+		MinNodeNum: 3,
 	}
 	_ = NewRaft(cfg)
 	cfg.Host = "127.0.0.1:8082"
@@ -32,13 +32,13 @@ func TestNewRaft(t *testing.T) {
 	_ = NewRaft(cfg)
 	cfg.Host = "127.0.0.1:8084"
 	_ = NewRaft(cfg)
-	cfg.Host = "127.0.0.1:8085"
-	_ = NewRaft(cfg)
-	cfg.Host = "127.0.0.1:8086"
-	_ = NewRaft(cfg)
-	cfg.Host = "127.0.0.1:8087"
-	_ = NewRaft(cfg)
-	cfg.Host = "127.0.0.1:8088"
-	_ = NewRaft(cfg)
+	//cfg.Host = "127.0.0.1:8085"
+	//_ = NewRaft(cfg)
+	//cfg.Host = "127.0.0.1:8086"
+	//_ = NewRaft(cfg)
+	//cfg.Host = "127.0.0.1:8087"
+	//_ = NewRaft(cfg)
+	//cfg.Host = "127.0.0.1:8088"
+	//_ = NewRaft(cfg)
 	time.Sleep(1000 * time.Second)
 }

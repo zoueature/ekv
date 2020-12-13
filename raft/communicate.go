@@ -41,40 +41,57 @@ func dialWorker(queue <-chan string, rf *raft) {
 	for {
 		host := <-queue
 		log.Printf("%s dial %s", rf.host, host)
-		conn, err := net.DialTimeout("tcp", host, dialClusterTimeout)
-		if err == nil {
-			cli := rpc.NewClient(conn)
-			old, ok := rf.cluster[host]
-			if ok {
-				old.cli = cli
-				old.healthy = true
-			} else {
-				rf.cluster[host] = &Cluster{
-					host:    host,
-					cli:     cli,
-					healthy: true,
-				}
-			}
-			continue
-		}
-		log.Printf("%s dial node: %s error: %s", rf.host, host, err.Error())
 		go func() {
-			//1秒后重试
-			timer := time.NewTicker(1 * time.Second)
-			<-timer.C
-			rf.dialChan <- host
+			conn, err := net.DialTimeout("tcp", host, dialClusterTimeout)
+			if err == nil {
+				cli := rpc.NewClient(conn)
+				rf.lock.Lock()
+				old, ok := rf.cluster[host]
+				if ok {
+					old.cli = cli
+					old.healthy = true
+				} else {
+					rf.cluster[host] = &Cluster{
+						host:    host,
+						cli:     cli,
+						healthy: true,
+					}
+				}
+				rf.lock.Unlock()
+				return
+			}
+			log.Printf("%s dial node: %s error: %s", rf.host, host, err.Error())
+			go func() {
+				//1秒后重试
+				timer := time.NewTicker(1 * time.Second)
+				<-timer.C
+				rf.dialChan <- host
+			}()
 		}()
 	}
 }
 
-// InitialRpcServer 初始化rpc服务
-func InitialRpcServer(host string, rf Server) error {
-	listener, err := net.Listen("tcp", host)
+func (rf *raft) InitialService() error {
+	listener, err := net.Listen("tcp", rf.host)
+	if err != nil {
+		log.Fatalf("start listener error: %s", err.Error())
+		return err
+	}
+	// 初始化集群rpc服务
+	err = InitialRpcServer(listener, &Rpc{rf: rf})
 	if err != nil {
 		return err
 	}
+	// 初始化leader对外服务
+	rfSvc := newRaftService(listener)
+	rfSvc.Start()
+	return nil
+}
+
+// InitialRpcServer 初始化rpc服务
+func InitialRpcServer(listener net.Listener, rf Server) error {
 	server := rpc.NewServer()
-	err = server.Register(rf)
+	err := server.Register(rf)
 	if err != nil {
 		return err
 	}
@@ -125,7 +142,7 @@ follow:
 
 // Log leader调用， 用于复制日志条目
 func (r *Rpc) Log(l *LogMsg, reply *LogReply) error {
-	log.Printf("beat heat from leader: %s", r.rf.host)
+	log.Printf("beat heat from leader: %s", l.LeaderID)
 	r.rf.latestHeartBeat = time.Now().UnixNano() //更新心跳时间
 	r.rf.setVote("")                             //已经确定了领导人，删除投票
 	if l.Term >= r.rf.getTerm() {

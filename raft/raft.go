@@ -108,7 +108,7 @@ func NewRaft(cfg *Conf) Raft {
 		host:        cfg.Host,
 		conf:        cfg,
 	}
-	err := InitialRpcServer(cfg.Host, &Rpc{rf: rf})
+	err := rf.InitialService()
 	if err != nil {
 		log.Fatalf("start %s server error: %s", cfg.Host, err.Error())
 		return nil
@@ -139,8 +139,8 @@ func (rf *raft) Commit(startIndex int, length ...int) error {
 
 func (rf *raft) setRole(r Role) {
 	rf.lock.Lock()
+	defer rf.lock.Unlock()
 	rf.role = r
-	rf.lock.Unlock()
 }
 
 func (rf *raft) getRole() Role {
@@ -151,8 +151,8 @@ func (rf *raft) getRole() Role {
 
 func (rf *raft) setCurrentTerm(term int64) {
 	rf.lock.Lock()
+	defer rf.lock.Unlock()
 	rf.currentTerm = term
-	rf.lock.Unlock()
 }
 
 func (rf *raft) getTerm() int64 {
@@ -163,8 +163,8 @@ func (rf *raft) getTerm() int64 {
 
 func (rf *raft) setVote(id string) {
 	rf.lock.Lock()
+	defer rf.lock.Unlock()
 	rf.votedFor = id
-	rf.lock.Unlock()
 }
 
 func (rf *raft) getVote() string {
